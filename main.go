@@ -94,6 +94,11 @@ func createEmployee(employee Employee) error {
 	// Check if the file exists
 	_, err := os.Stat(csvFilename)    //Checking the file information for a file
 	fileExists := !os.IsNotExist(err) //checks whether an error occurred during the attempt to get file information
+	employees, err := getAllEmployees()
+	if err != nil {
+		log.Printf("Error while getting all employees: %v", err)
+		return err
+	}
 
 	// Open the file with the appropriate flags
 	file, err := os.OpenFile(csvFilename, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
@@ -115,24 +120,39 @@ func createEmployee(employee Employee) error {
 		}
 	}
 
-	err = writer.Write([]string{
-		strconv.Itoa(employee.ID),
-		employee.FirstName,
-		employee.LastName,
-		employee.Email,
-		employee.Password,
-		employee.PhoneNo,
-		employee.Role,
-		strconv.FormatFloat(employee.Salary, 'f', -1, 64),
-		employee.Birthdate,
-	})
-	if err != nil {
-		log.Printf("Error writing data for createEmployee: %v", err)
-		return err
+	var b bool = true
+
+	for _, emp := range employees {
+		if emp.ID == employee.ID {
+			log.Printf("ID %d is already present in database.", employee.ID)
+			b = false
+		}
+		// break
 	}
 
-	log.Printf("Employee with ID %d created successfully", employee.ID)
-	return nil
+	if b == true {
+		err = writer.Write([]string{
+			strconv.Itoa(employee.ID),
+			employee.FirstName,
+			employee.LastName,
+			employee.Email,
+			employee.Password,
+			employee.PhoneNo,
+			employee.Role,
+			strconv.FormatFloat(employee.Salary, 'f', -1, 64),
+			employee.Birthdate,
+		})
+		if err != nil {
+			log.Printf("Error writing data for createEmployee: %v", err)
+			return err
+		}
+
+		log.Printf("Employee with ID %d created successfully", employee.ID)
+		return nil
+	}else{
+		return nil
+	}
+
 }
 
 // updateEmployee updates specific fields of an employee with a given ID in the CSV file
@@ -333,8 +353,8 @@ func handleCreateEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Employee created successfully")
-	w.WriteHeader(http.StatusCreated)
+	// log.Println("Employee created successfully")
+	// w.WriteHeader(http.StatusCreated)
 }
 
 // handleViewEmployeeByID handles the GET request to retrieve details of a specific employee by ID
@@ -452,7 +472,7 @@ func main() {
 	r.HandleFunc("/employees", handleCreateEmployee).Methods("POST")
 	r.HandleFunc("/employees/{id}", handleViewEmployeeByID).Methods("GET")
 	r.HandleFunc("/employees/search_by_key/search", handleSearchEmployees).Methods("GET")
-	r.HandleFunc("/employees/{id}", handleUpdateEmployee).Methods("PUT")
+	r.HandleFunc("/employees/{id}", handleUpdateEmployee).Methods("PATCH")
 	r.HandleFunc("/employees/{id}", handleDeleteEmployee).Methods("DELETE")
 
 	log.Println("Server started at port 8080!!!")
